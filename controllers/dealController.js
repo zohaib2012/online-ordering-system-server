@@ -18,7 +18,7 @@ export const getActiveDeals = async (req, res) => {
 export const createDeal = async (req, res) => {
   try {
     const { title, description, originalPrice, dealPrice, validTill } = req.body;
-    
+    console.log(title, description, originalPrice, dealPrice, validTill )
     if (!req.file) {
       return res.status(400).json({ message: 'Image is required' });
     }

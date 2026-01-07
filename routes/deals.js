@@ -14,7 +14,7 @@ const router = express.Router();
 router.get('/', getActiveDeals);
 
 // Admin routes (add verifyAdmin middleware in production)
-router.post('/', upload.single('image'), createDeal);
+router.post('/create', upload.single('image'), createDeal);
 router.put('/:id', upload.single('image'), updateDeal);
 router.delete('/:id', deleteDeal);
 router.get('/all', getAllDeals);

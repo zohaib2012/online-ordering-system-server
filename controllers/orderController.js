@@ -1,6 +1,90 @@
 import Order from '../models/Order.js';
 import MenuItem from '../models/MenuItem.js';
 import { validationResult } from 'express-validator';
+import Deal from '../models/Deal.js';
+
+// export const createOrder = async (req, res) => {
+//   try {
+//     // Check validation errors
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//       return res.status(400).json({ errors: errors.array() });
+//     }
+
+//     const { items, orderType, paymentMethod, deliveryAddress, orderNote } = req.body;
+    
+//     // Calculate total and validate items
+//     let totalAmount = 0;
+//     const orderItems = [];
+
+//     for (const item of items) {
+//       const menuItem = await MenuItem.findById(item.menuItem);
+      
+//       if (!menuItem) {
+//         return res.status(400).json({ 
+//           message: `Item with ID ${item.menuItem} not found` 
+//         });
+//       }
+
+//       if (!menuItem.isAvailable) {
+//         return res.status(400).json({ 
+//           message: `${menuItem.name} is currently unavailable` 
+//         });
+//       }
+
+//       const quantity = parseInt(item.quantity);
+//       if (quantity < 1) {
+//         return res.status(400).json({ 
+//           message: `Quantity for ${menuItem.name} must be at least 1` 
+//         });
+//       }
+
+//       totalAmount += menuItem.price * quantity;
+      
+//       orderItems.push({
+//         menuItem: menuItem._id,
+//         name: menuItem.name,
+//         price: menuItem.price,
+//         quantity
+//       });
+//     }
+
+//     if (orderItems.length === 0) {
+//       return res.status(400).json({ message: 'No valid items in order' });
+//     }
+
+//     // Create order
+//     const order = new Order({
+//       user: req.user.id,
+//       items: orderItems,
+//       totalAmount,
+//       orderType,
+//       paymentMethod,
+//       deliveryAddress,
+//       orderNote,
+//       status: 'pending'
+//     });
+
+//     await order.save();
+
+//     // Populate order details
+//     const populatedOrder = await Order.findById(order._id)
+//       .populate('items.menuItem', 'name image')
+//       .populate('user', 'name email phone');
+
+//     // Emit new order notification
+//     const io = req.app.get('io');
+//     io.to('admin-room').emit('newOrder', populatedOrder);
+
+//     res.status(201).json({
+//       message: 'Order created successfully',
+//       order: populatedOrder
+//     });
+//   } catch (error) {
+//     console.error('Create order error:', error);
+//     res.status(500).json({ message: 'Server error', error: error.message });
+//   }
+// };
 
 export const createOrder = async (req, res) => {
   try {
@@ -17,34 +101,74 @@ export const createOrder = async (req, res) => {
     const orderItems = [];
 
     for (const item of items) {
-      const menuItem = await MenuItem.findById(item.menuItem);
+      const itemId = item.menuItem; // Yeh ID ho sakta hai MenuItem ka ya Deal ka
       
-      if (!menuItem) {
+      // Pehle MenuItem mein check karein
+      let foundItem = await MenuItem.findById(itemId);
+      let itemType = 'menuItem';
+      
+      // Agar MenuItem mein nahi mila, toh Deal mein check karein
+      if (!foundItem) {
+        foundItem = await Deal.findById(itemId);
+        itemType = 'deal';
+      }
+      
+      // Agar dono mein nahi mila
+      if (!foundItem) {
         return res.status(400).json({ 
-          message: `Item with ID ${item.menuItem} not found` 
+          message: `Item with ID ${itemId} not found` 
         });
       }
 
-      if (!menuItem.isAvailable) {
-        return res.status(400).json({ 
-          message: `${menuItem.name} is currently unavailable` 
-        });
+      // Availability check based on item type
+      if (itemType === 'menuItem') {
+        if (!foundItem.isAvailable) {
+          return res.status(400).json({ 
+            message: `${foundItem.name} is currently unavailable` 
+          });
+        }
+      } else if (itemType === 'deal') {
+        if (!foundItem.isActive) {
+          return res.status(400).json({ 
+            message: `${foundItem.title} deal is no longer active` 
+          });
+        }
+        
+        // Check if deal is expired
+        if (new Date(foundItem.validTill) < new Date()) {
+          return res.status(400).json({ 
+            message: `${foundItem.title} deal has expired` 
+          });
+        }
       }
 
       const quantity = parseInt(item.quantity);
       if (quantity < 1) {
+        const itemName = itemType === 'menuItem' ? foundItem.name : foundItem.title;
         return res.status(400).json({ 
-          message: `Quantity for ${menuItem.name} must be at least 1` 
+          message: `Quantity for ${itemName} must be at least 1` 
         });
       }
 
-      totalAmount += menuItem.price * quantity;
+      // Calculate price based on item type
+      let price;
+      if (itemType === 'menuItem') {
+        price = foundItem.price;
+      } else {
+        price = foundItem.dealPrice;
+      }
       
+      totalAmount += price * quantity;
+      
+      // Store order item with type information
       orderItems.push({
-        menuItem: menuItem._id,
-        name: menuItem.name,
-        price: menuItem.price,
-        quantity
+        menuItem: foundItem._id,
+        name: itemType === 'menuItem' ? foundItem.name : foundItem.title,
+        price: price,
+        quantity,
+        itemType: itemType, // Store type for reference
+        originalPrice: itemType === 'deal' ? foundItem.originalPrice : null,
+        isDeal: itemType === 'deal'
       });
     }
 
@@ -68,7 +192,6 @@ export const createOrder = async (req, res) => {
 
     // Populate order details
     const populatedOrder = await Order.findById(order._id)
-      .populate('items.menuItem', 'name image')
       .populate('user', 'name email phone');
 
     // Emit new order notification
