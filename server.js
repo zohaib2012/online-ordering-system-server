@@ -205,16 +205,12 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-const startServer = async () => {
   await connectDB();
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
-};
 
-startServer();
-
-export { app };
+// export { app };
 
 // Vercel serverless handler
 // export default async function handler(req, res) {
