@@ -140,13 +140,15 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
-    credentials: true
-  }
-});
+
+// socket io connection
+// const server = http.createServer(app);
+// const io = new Server(server, {
+//   cors: {
+//     origin: process.env.FRONTEND_URL || "http://localhost:3000",
+//     credentials: true
+//   }
+// });
 
 
 app.use(express.urlencoded({ extended: true }));
@@ -156,20 +158,44 @@ app.use(morgan('dev'));
 
 
 // Socket.io connection
-io.on('connection', (socket) => {
-  console.log('New client connected');
+// io.on('connection', (socket) => {
+//   console.log('New client connected');
   
-  socket.on('joinAdminRoom', () => {
-    socket.join('admin-room');
-  });
+//   socket.on('joinAdminRoom', () => {
+//     socket.join('admin-room');
+//   });
   
-  socket.on('disconnect', () => {
-    console.log('Client disconnected');
-  });
-});
+//   socket.on('disconnect', () => {
+//     console.log('Client disconnected');
+//   });
+// });
 
-// Make io accessible to routes
-app.set('io', io);
+// // Make io accessible to routes
+// app.set('io', io);
+
+
+
+// socket io connetion just on local not on live
+
+let io;
+
+if (process.env.NODE_ENV !== 'production') {
+  const server = http.createServer(app);
+  io = new Server(server, {
+    cors: {
+      origin: ['http://localhost:3000' , 'https://ordering-liart.vercel.app'],
+      credentials: true
+    }
+  });
+
+  io.on('connection', (socket) => {
+    console.log('New client connected');
+    socket.on('joinAdminRoom', () => socket.join('admin-room'));
+    socket.on('disconnect', () => console.log('Client disconnected'));
+  });
+
+  app.set('io', io);
+}
 
 
 /* =======================
@@ -249,7 +275,7 @@ const PORT = process.env.PORT || 5000;
     console.log(`Server running on port ${PORT}`);
   });
 
-export { app ,io};
+// export { app ,io };
 
 // Vercel serverless handler
 // export default async function handler(req, res) {
