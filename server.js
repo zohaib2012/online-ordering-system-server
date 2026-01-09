@@ -7,12 +7,12 @@ import http from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 
-import authRoutes from './routes/auth.js';
-import menuRoutes from './routes/menu.js';
-import orderRoutes from './routes/orders.js';
-import adminRoutes from './routes/admin.js';
-import dealRoutes from './routes/deals.js';
-import { verifyToken, verifyAdmin } from './middleware/auth.js';
+import authRoutes from './api/routes/auth.js';
+import menuRoutes from './api/routes/menu.js';
+import orderRoutes from './api/routes/orders.js';
+import adminRoutes from './api/routes/admin.js';
+import dealRoutes from './api/routes/deals.js';
+import { verifyToken, verifyAdmin } from './api/middleware/auth.js';
 
 dotenv.config();
 
